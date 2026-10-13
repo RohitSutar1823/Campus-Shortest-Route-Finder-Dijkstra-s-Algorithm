@@ -1,0 +1,330 @@
+
+#include <stdio.h>
+#include <string.h>
+
+#define MAX 20
+#define INF 99999
+
+int graph[MAX][MAX];
+int visited[MAX];
+int distance[MAX];
+int parent[MAX];
+char location[MAX][50];
+
+int n = 0;
+int graphEntered = 0;
+int sourceSelected = 0;
+int source = -1;
+int shortestPathFound = 0;
+
+// Display all campus locations
+void displayLocations() {
+    int i;
+
+    printf("\nCampus Locations:\n");
+    for (i = 0; i < n; i++) {
+        printf("%d. %s\n", i + 1, location[i]);
+    }
+}
+
+// Enter campus locations and road distances
+void enterGraph() {
+    int i, j, weight;
+
+    printf("Enter number of locations (1-%d): ", MAX);
+    if (scanf("%d", &n) != 1 || n < 1 || n > MAX) {
+        printf("Invalid number of locations.\n");
+        n = 0;
+        graphEntered = 0;
+        sourceSelected = 0;
+        shortestPathFound = 0;
+        return;
+    }
+
+    getchar(); // Clear newline
+
+    for (i = 0; i < n; i++) {
+        printf("Enter name of location %d: ", i + 1);
+        if (fgets(location[i], sizeof(location[i]), stdin) == NULL) {
+            printf("Error reading location name.\n");
+            n = 0;
+            graphEntered = 0;
+            return;
+        }
+
+        location[i][strcspn(location[i], "\n")] = '\0';
+
+        if (strlen(location[i]) == 0) {
+            sprintf(location[i], "Location %d", i + 1);
+        }
+    }
+
+    printf("\nEnter road distances between locations.\n");
+    printf("Enter 0 if no direct road exists.\n");
+    printf("Enter -1 on the diagonal and non-negative weights otherwise.\n");
+    printf("For this undirected campus, each road is entered once per pair.\n");
+
+    for (i = 0; i < n; i++) {
+        for (j = i; j < n; j++) {
+            if (i == j) {
+                graph[i][j] = 0;
+            } else {
+                printf("Distance between %s and %s (0 = no road): ",
+                       location[i], location[j]);
+
+                if (scanf("%d", &weight) != 1 || weight < 0 ||
+                    weight >= INF) {
+                    printf("Invalid distance. Enter a value from 0 to %d.\n",
+                           INF - 1);
+                    graphEntered = 0;
+                    sourceSelected = 0;
+                    shortestPathFound = 0;
+                    n = 0;
+                    return;
+                }
+
+                if (weight == 0) {
+                    graph[i][j] = INF;
+                    graph[j][i] = INF;
+                } else {
+                    graph[i][j] = weight;
+                    graph[j][i] = weight;
+                }
+            }
+        }
+    }
+
+    graphEntered = 1;
+    sourceSelected = 0;
+    shortestPathFound = 0;
+    printf("\nCampus graph entered successfully.\n");
+}
+
+// Display adjacency matrix
+void displayMatrix() {
+    int i, j;
+
+    if (!graphEntered) {
+        printf("Please enter the campus graph first.\n");
+        return;
+    }
+
+    printf("\nAdjacency Matrix (INF means no direct road):\n\n");
+
+    printf("%-20s", "");
+    for (i = 0; i < n; i++) {
+        printf("%-15s", location[i]);
+    }
+    printf("\n");
+
+    for (i = 0; i < n; i++) {
+        printf("%-20s", location[i]);
+
+        for (j = 0; j < n; j++) {
+            if (graph[i][j] == INF) {
+                printf("%-15s", "INF");
+            } else {
+                printf("%-15d", graph[i][j]);
+            }
+        }
+        printf("\n");
+    }
+}
+
+// Select source location
+void selectSource() {
+    int choice;
+
+    if (!graphEntered) {
+        printf("Please enter the campus graph first.\n");
+        return;
+    }
+
+    displayLocations();
+    printf("Select source location number: ");
+
+    if (scanf("%d", &choice) != 1 || choice < 1 || choice > n) {
+        printf("Invalid source location.\n");
+        return;
+    }
+
+    source = choice - 1;
+    sourceSelected = 1;
+    shortestPathFound = 0;
+
+    printf("Source selected: %s\n", location[source]);
+}
+
+// Dijkstra's Algorithm using adjacency matrix
+void dijkstra() {
+    int i, count, u, v, minDistance;
+
+    if (!graphEntered || !sourceSelected) {
+        printf("Enter the graph and select a source first.\n");
+        return;
+    }
+
+    for (i = 0; i < n; i++) {
+        distance[i] = INF;
+        visited[i] = 0;
+        parent[i] = -1;
+    }
+
+    distance[source] = 0;
+
+    for (count = 0; count < n; count++) {
+        u = -1;
+        minDistance = INF;
+
+        // Select the unvisited vertex with minimum distance
+        for (i = 0; i < n; i++) {
+            if (!visited[i] && distance[i] < minDistance) {
+                minDistance = distance[i];
+                u = i;
+            }
+        }
+
+        // Remaining vertices are unreachable
+        if (u == -1) {
+            break;
+        }
+
+        visited[u] = 1;
+
+        // Update distances of adjacent vertices
+        for (v = 0; v < n; v++) {
+            if (!visited[v] && graph[u][v] != INF &&
+                distance[u] + graph[u][v] < distance[v]) {
+
+                distance[v] = distance[u] + graph[u][v];
+                parent[v] = u;
+            }
+        }
+    }
+
+    shortestPathFound = 1;
+    printf("\nDijkstra's Algorithm executed successfully.\n");
+}
+
+// Recursively display the path using the parent array
+void displayPath(int vertex) {
+    if (vertex == -1) {
+        return;
+    }
+
+    displayPath(parent[vertex]);
+    printf("%s", location[vertex]);
+    if (vertex != source) {
+        printf(" -> ");
+    }
+}
+
+// Display shortest paths to all destinations
+void displayPaths() {
+    int i;
+
+    if (!shortestPathFound) {
+        printf("Please run Dijkstra's Algorithm first.\n");
+        return;
+    }
+
+    printf("\nSource: %s\n", location[source]);
+    printf("\n%-25s %-20s %s\n",
+           "Destination", "Shortest Distance", "Shortest Path");
+
+    for (i = 0; i < n; i++) {
+        if (i == source) {
+            continue;
+        }
+
+        printf("%-25s ", location[i]);
+
+        if (distance[i] == INF) {
+            printf("%-20s No path available\n", "INF");
+        } else {
+            printf("%-20d ", distance[i]);
+            displayPath(i);
+            printf("\n");
+        }
+    }
+}
+
+// Display only distances from the selected source
+void displayDistances() {
+    int i;
+
+    if (!shortestPathFound) {
+        printf("Please run Dijkstra's Algorithm first.\n");
+        return;
+    }
+
+    printf("\nShortest distances from %s:\n", location[source]);
+
+    for (i = 0; i < n; i++) {
+        if (distance[i] == INF) {
+            printf("%s: Unreachable\n", location[i]);
+        } else {
+            printf("%s: %d\n", location[i], distance[i]);
+        }
+    }
+}
+
+int main() {
+    int choice;
+
+    do {
+        printf("\n===== CAMPUS SHORTEST ROUTE FINDER =====\n");
+        printf("1. Enter Campus Graph\n");
+        printf("2. Display Adjacency Matrix\n");
+        printf("3. Select Source Location\n");
+        printf("4. Find Shortest Distance\n");
+        printf("5. Display Shortest Paths\n");
+        printf("6. Display Distance from Source to All Locations\n");
+        printf("7. Exit\n");
+        printf("Enter your choice: ");
+
+        if (scanf("%d", &choice) != 1) {
+            printf("Invalid input. Please enter a menu number.\n");
+            while (getchar() != '\n' && !feof(stdin)) {
+                // Clear invalid input
+            }
+            continue;
+        }
+
+        switch (choice) {
+            case 1:
+                enterGraph();
+                break;
+
+            case 2:
+                displayMatrix();
+                break;
+
+            case 3:
+                selectSource();
+                break;
+
+            case 4:
+                dijkstra();
+                break;
+
+            case 5:
+                displayPaths();
+                break;
+
+            case 6:
+                displayDistances();
+                break;
+
+            case 7:
+                printf("Exiting Campus Shortest Route Finder.\n");
+                break;
+
+            default:
+                printf("Invalid menu choice. Please select 1-7.\n");
+        }
+
+    } while (choice != 7);
+
+    return 0;
+}
